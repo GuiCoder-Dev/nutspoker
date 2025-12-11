@@ -11,27 +11,36 @@ class SessionService(
 
     fun generateDefaultBlinds(): List<BlindModel> {
         val configs = listOf(
-            Triple(10, 20, 10),
-            Triple(15, 30, 10),
-            Triple(25, 50, 10),
-            Triple(50, 100, 10),
-            Triple(75, 150, 10),
-            Triple(100, 200, 10),
-            Triple(150, 300, 10),
-            Triple(200, 400, 10),
-            Triple(300, 600, 10),
-            Triple(500, 1000, 10)
+            Pair(10,  10),
+            Pair(15, 10),
+            Pair(25,  10),
+            Pair(50,  10),
+            Pair(75, 10),
+            Pair(0, 8), // break
+            Pair(100,  10),
+            Pair(150,  10),
+            Pair(200,  10),
+            Pair(300,  10),
+            Pair(500,  10),
+            Pair(0, 8), // break
+            Pair(750, 10),
+            Pair(1000, 10)
         )
 
-        val defaultBlinds = configs.mapIndexed { index, (small, big, dur) ->
+        var levelCounter = 0
+        val defaultBlinds = configs.map{(small, dur) ->
+            if(small > 0) {
+                levelCounter++
+            }
             BlindModel(
-                level = index + 1,  // Auto: 1 a 10
+                level = if (small > 0) levelCounter else 0,
                 smallBlind = small,
-                bigBlind = big,
+                bigBlind = if (small > 0) small * 2 else 0,
                 ante = 0,
                 duration = dur
             )
         }
+
         val savedBlinds = blindRepository.saveAll(defaultBlinds)
 
         return savedBlinds.toList()
