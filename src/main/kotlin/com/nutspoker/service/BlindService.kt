@@ -30,4 +30,8 @@ class BlindService(
         return savedBlind
     }
 
+    fun blindsLoad(): List<BlindModel>{
+        return blindRepository.findAll()
+    }
+
 }
