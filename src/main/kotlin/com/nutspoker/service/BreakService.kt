@@ -9,6 +9,7 @@ class BreakService(
     private val blindRepository: BlindRepository,
 ) {
 
+    // Post
     fun newBreak(): BlindModel{
 
         val newBlind = BlindModel(
@@ -21,6 +22,16 @@ class BreakService(
 
         val savedBlind = blindRepository.save(newBlind)
         return savedBlind
+    }
+
+    // Put
+    fun update(breakUpdate: BlindModel){
+        if(breakUpdate.level == 0){
+            blindRepository.save(breakUpdate)
+        } else {
+            TODO()
+        }
+
     }
 
 

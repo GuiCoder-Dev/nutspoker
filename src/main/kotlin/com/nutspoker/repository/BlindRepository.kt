@@ -5,4 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository
 
 interface BlindRepository: JpaRepository<BlindModel, Int>{
     fun findTopByOrderByLevelDesc(): BlindModel
+    fun findAllByOrderByIdAsc(): List<BlindModel>
 }

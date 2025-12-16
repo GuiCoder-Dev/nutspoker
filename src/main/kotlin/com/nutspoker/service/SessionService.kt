@@ -9,6 +9,7 @@ class SessionService(
     private val blindRepository: BlindRepository
 ) {
 
+    // Post
     fun generateDefaultBlinds(): List<BlindModel> {
         val configs = listOf(
             Pair(10,  10),
