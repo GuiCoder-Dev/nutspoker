@@ -26,5 +26,8 @@ class BlindModel(
     var ante: Int,
 
     @Column(name ="duration")
-    var duration: Int
+    var duration: Int,
+
+    @Column(name = "session_id")
+    var sessionId: String,
 )

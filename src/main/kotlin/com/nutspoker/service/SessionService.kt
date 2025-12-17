@@ -2,6 +2,7 @@ package com.nutspoker.service
 
 import com.nutspoker.model.BlindModel
 import com.nutspoker.repository.BlindRepository
+import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
 
 @Service
@@ -10,7 +11,7 @@ class SessionService(
 ) {
 
     // Post
-    fun generateDefaultBlinds(): List<BlindModel> {
+    fun generateDefaultBlinds(sessionId: String): List<BlindModel> {
         val configs = listOf(
             Pair(10,  10),
             Pair(15, 10),
@@ -38,7 +39,8 @@ class SessionService(
                 smallBlind = small,
                 bigBlind = if (small > 0) small * 2 else 0,
                 ante = 0,
-                duration = dur
+                duration = dur,
+                sessionId = sessionId
             )
         }
 
@@ -46,4 +48,15 @@ class SessionService(
 
         return savedBlinds.toList()
     }
+
+    fun getBlindsBySession(sessionId: String): List<BlindModel> {
+        return blindRepository.findBySessionId(sessionId)
+    }
+
+    @Transactional
+    fun endSession(sessionId: String) {
+        blindRepository.deleteBySessionId(sessionId)
+    }
+
 }
+

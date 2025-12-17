@@ -11,13 +11,16 @@ class BreakService(
 
     // Post
     fun newBreak(): BlindModel{
+        val lastBlind = blindRepository.findTopByOrderByLevelDesc()
+
 
         val newBlind = BlindModel(
             level = 0,
             smallBlind = 0,
             bigBlind = 0,
             ante = 0,
-            duration = 8
+            duration = 8,
+            sessionId = lastBlind.sessionId
         )
 
         val savedBlind = blindRepository.save(newBlind)

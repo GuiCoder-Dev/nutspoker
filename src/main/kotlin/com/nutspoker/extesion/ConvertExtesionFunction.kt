@@ -15,7 +15,8 @@ fun PutBlindRequest.toBlindModel(previousBlind: BlindModel): BlindModel{
         smallBlind = this.smallBlind ?: previousBlind.smallBlind,
         bigBlind = this.bigBlind ?: previousBlind.bigBlind,
         ante = this.ante ?: previousBlind.ante,
-        duration = this.duration ?: previousBlind.duration
+        duration = this.duration ?: previousBlind.duration,
+        sessionId = previousBlind.sessionId
     )
 }
 
@@ -27,7 +28,8 @@ fun PutBreakRequest.toBlindModel(previousBlind: BlindModel): BlindModel{
         smallBlind = previousBlind.smallBlind,
         bigBlind = previousBlind.bigBlind,
         ante = previousBlind.ante,
-        duration = this.duration ?: previousBlind.duration
+        duration = this.duration ?: previousBlind.duration,
+        sessionId = previousBlind.sessionId
     )
 }
 

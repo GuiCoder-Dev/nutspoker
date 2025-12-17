@@ -17,7 +17,7 @@ class BlindService(
         val newLevel = lastBlind.level + 1
         val newSmallBlind = lastBlind.smallBlind * 2
         val newBigBlind = lastBlind.bigBlind * 2
-        val newAnte = newBigBlind
+        val newAnte = lastBlind.ante
         val newDuration = lastBlind.duration
 
         val newBlind = BlindModel(
@@ -26,6 +26,7 @@ class BlindService(
             bigBlind = newBigBlind,
             ante = newAnte,
             duration = newDuration,
+            sessionId = lastBlind.sessionId
         )
 
         val savedBlind = blindRepository.save(newBlind)

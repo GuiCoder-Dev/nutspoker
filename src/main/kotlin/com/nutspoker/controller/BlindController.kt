@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
@@ -24,23 +25,23 @@ class BlindController(
 ) {
 
     @PostMapping("/add")
-    fun createNewBlind(){
+    fun createNewBlind(@RequestHeader("X-Session-Id") sessionId: String){
         blindService.newBlind()
     }
 
     @GetMapping("/load")
-    fun loadBlinds(): List<BlindLoadResponse>{
+    fun loadBlinds(@RequestHeader("X-Session-Id") sessionId: String): List<BlindLoadResponse>{
         return blindService.blindsLoad().map {it.toBlindLoadResponse()}
     }
 
     @PutMapping("/update/{id}")
-    fun updateBlinds(@PathVariable id: Int, @RequestBody @Valid blindUpdate: PutBlindRequest){
+    fun updateBlinds(@PathVariable id: Int, @RequestBody @Valid blindUpdate: PutBlindRequest, @RequestHeader("X-Session-Id") sessionId: String){
         val blind = blindRepository.findById(id).orElseThrow()
         blindService.update(blindUpdate.toBlindModel(blind))
     }
 
     @DeleteMapping("/delete/{id}")
-    fun deleteBlindsAndBreaks(@PathVariable id: Int){
+    fun deleteBlindsAndBreaks(@PathVariable id: Int, @RequestHeader("X-Session-Id") sessionId: String){
         val blindModel = blindRepository.findById(id).orElseThrow()
         blindService.delete(blindModel)
     }

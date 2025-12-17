@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
+import org.springframework.web.bind.annotation.RequestHeader
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
@@ -19,12 +20,12 @@ class BreakController(
 ) {
 
     @PostMapping("/add")
-    fun createNewBreak(){
+    fun createNewBreak(@RequestHeader("X-Session-Id") sessionId: String){
         breakService.newBreak()
     }
 
     @PutMapping("/update/{id}")
-    fun updateBreak(@PathVariable id: Int, @RequestBody breakUpdate: PutBreakRequest){
+    fun updateBreak(@PathVariable id: Int, @RequestBody breakUpdate: PutBreakRequest, @RequestHeader("X-Session-Id") sessionId: String){
         val breakPoker = blindRepository.findById(id).orElseThrow()
         breakService.update(breakUpdate.toBlindModel(breakPoker))
     }
