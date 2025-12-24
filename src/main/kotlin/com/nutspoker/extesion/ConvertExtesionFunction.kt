@@ -1,10 +1,14 @@
 package com.nutspoker.extesion
 
+import com.nutspoker.controller.request.PostParticipantRequest
 import com.nutspoker.controller.request.PutBlindRequest
 import com.nutspoker.controller.request.PutBreakRequest
+import com.nutspoker.controller.request.PutParticipantRequest
 import com.nutspoker.controller.response.BlindLoadResponse
+import com.nutspoker.controller.response.ParticipantsShowResponse
 import com.nutspoker.model.BlindModel
-
+import com.nutspoker.model.ParticipantModel
+import org.springframework.data.jpa.domain.AbstractPersistable_.id
 
 
 // Request to Model
@@ -33,6 +37,29 @@ fun PutBreakRequest.toBlindModel(previousBlind: BlindModel): BlindModel{
     )
 }
 
+// Request to Model
+fun PostParticipantRequest.toParticipantModel(): ParticipantModel {
+    return ParticipantModel(
+        player = this.player,
+    )
+}
+
+// Request to Model
+fun PutParticipantRequest.toParticipantModel(previousParticipant: ParticipantModel): ParticipantModel {
+    return ParticipantModel(
+        id = previousParticipant.id,
+        player = this.player ?: previousParticipant.player,
+        buyIn = this.buyIn ?: previousParticipant.buyIn,
+        quantityRebuy = this.quantityRebut ?: previousParticipant.quantityRebuy,
+        valueRebuy = this.valueRebuy ?: previousParticipant.valueRebuy,
+        totalRebuy = previousParticipant.totalRebuy,
+        addOn = this.addOn ?: previousParticipant.addOn,
+        totalPlayer = previousParticipant.totalPlayer,
+        payment = this.payment ?: previousParticipant.payment,
+        position = this.position ?: previousParticipant.position,
+    )
+}
+
 
 // Model to Response
 fun BlindModel.toBlindLoadResponse(): BlindLoadResponse{
@@ -45,5 +72,19 @@ fun BlindModel.toBlindLoadResponse(): BlindLoadResponse{
     )
 }
 
+//Model to Response
+fun ParticipantModel.toParticipantsShowResponse(): ParticipantsShowResponse {
+    return ParticipantsShowResponse(
+        player = this.player,
+        buyIn = this.buyIn,
+        quantityRebuy = this.quantityRebuy,
+        valueRebuy = this.valueRebuy,
+        totalRebuy = this.totalRebuy,
+        addOn = this.addOn,
+        totalPlayer = this.totalPlayer,
+        payment = this.payment,
+        position = this.position,
+    )
+}
 
 

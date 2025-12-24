@@ -1,12 +1,14 @@
 // src/pages/HomePage.jsx
 import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom'; // Importação para navegação
 import api from '../services/api';
 import { 
     Settings, X, Play, Pause, ChevronLeft, ChevronRight, 
-    Trash2, Plus, Save, Coffee, Volume2, VolumeX 
+    Trash2, Plus, Save, Coffee, Volume2, VolumeX, TableProperties 
 } from 'lucide-react';
 
 function HomePage() {
+    const navigate = useNavigate(); // Hook de navegação
     const [sessionId, setSessionId] = useState(null);
     const [blinds, setBlinds] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -78,14 +80,10 @@ function HomePage() {
             timerRef.current = setInterval(() => {
                 setTimeLeft(prev => {
                     const nextTime = prev - 1;
-                    
                     if (isSoundEnabled && nextTime <= 10 && nextTime >= 0) {
                         if (blinds[currentIndex]?.level !== 0) {
-                            // Toca o som a cada segundo
                             audioRef.current.currentTime = 0;
                             audioRef.current.play().catch(() => {});
-                            
-                            // Aumenta a frequência nos últimos 5 segundos (toca um segundo bip no meio do segundo)
                             if (nextTime <= 5 && nextTime > 0) {
                                 setTimeout(() => {
                                     audioRef.current.currentTime = 0;
@@ -183,7 +181,16 @@ function HomePage() {
                 <Settings color="#61dafb" size={28} style={{ cursor: 'pointer' }} onClick={() => setShowSettings(true)} />
             </div>
 
-            <h1 style={styles.title}>NUTSPOKER</h1>
+            {/* Container do Logo e Botão de Tabelas */}
+            <div style={styles.brandContainer}>
+                <h1 style={styles.title}>NUTSPOKER</h1>
+                <button 
+                    onClick={() => navigate('/participants')}
+                    style={styles.participantsBtn}
+                >
+                    <TableProperties size={18} /> TABELAS DOS PARTICIPANTES
+                </button>
+            </div>
 
             <div style={styles.timerWrapper}>
                 <div style={styles.sideBlind}>
@@ -282,7 +289,9 @@ function HomePage() {
 const styles = {
     container: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#0f0f0f', color: '#fff', fontFamily: '"Courier New", Courier, monospace', padding: '0 40px' },
     header: { position: 'absolute', top: '25px', right: '40px', display: 'flex', gap: '25px', alignItems: 'center' },
-    title: { fontSize: '2.2em', color: '#61dafb', position: 'absolute', top: '25px', left: '40px', margin: 0, letterSpacing: '6px', fontWeight: 'bold' },
+    brandContainer: { position: 'absolute', top: '25px', left: '40px', display: 'flex', flexDirection: 'column', gap: '10px' },
+    title: { fontSize: '2.2em', color: '#61dafb', margin: 0, letterSpacing: '6px', fontWeight: 'bold' },
+    participantsBtn: { display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'transparent', border: '1px solid #61dafb', color: '#61dafb', padding: '8px 15px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8em', letterSpacing: '2px', fontWeight: 'bold', transition: '0.3s' },
     timerWrapper: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', maxWidth: '1400px', marginTop: '20px' },
     mainTimerContainer: { display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 2 },
     timeDisplay: { fontSize: '12vw', fontWeight: 'bold', lineHeight: '1', color: '#fff', textShadow: '0 0 20px rgba(97, 218, 251, 0.2)' },
@@ -295,7 +304,7 @@ const styles = {
     sideValues: { fontSize: '2.2em', fontWeight: 'bold' },
     sideAnte: { fontSize: '0.9em' },
     controls: { marginTop: '40px', display: 'flex', gap: '40px', alignItems: 'center' },
-    playButton: { backgroundColor: '#61dafb', border: 'none', borderRadius: '50%', width: '90px', height: '90px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 30px rgba(97, 218, 251, 0.3)' },
+    playButton: { backgroundColor: '#61dafb', border: 'none', borderRadius: '50%', width: '90px', height: '80px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 30px rgba(97, 218, 251, 0.3)' },
     navButton: { background: 'none', border: 'none', cursor: 'pointer', padding: '5px' },
     modalOverlay: { position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.98)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
     modalContent: { backgroundColor: '#161616', padding: '30px', borderRadius: '15px', width: '90%', maxWidth: '850px', border: '1px solid #333' },
