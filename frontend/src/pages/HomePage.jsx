@@ -1,6 +1,6 @@
 // src/pages/HomePage.jsx
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom'; // Importação para navegação
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { 
     Settings, X, Play, Pause, ChevronLeft, ChevronRight, 
@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 function HomePage() {
-    const navigate = useNavigate(); // Hook de navegação
+    const navigate = useNavigate();
     const [sessionId, setSessionId] = useState(null);
     const [blinds, setBlinds] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -22,58 +22,118 @@ function HomePage() {
     
     const timerRef = useRef(null);
     const audioRef = useRef(new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg'));
+    // isMounted não é mais necessário para o problema atual, mas pode ser útil para outras otimizações
+    // const isMounted = useRef(true); 
 
-    const fetchBlinds = useCallback(async (sId) => {
+    // Esta função é para recarregar blinds de uma sessão JÁ ESTABELECIDA
+    const fetchBlindsData = useCallback(async (sId) => {
         try {
-            const res = await api.get('/session/blinds', {
-                headers: { 'X-Session-Id': sId }
+            const idToUse = sId || sessionId || localStorage.getItem('poker_session_id');
+            if (!idToUse) return;
+
+            const response = await api.get('/session/blinds', {
+                headers: { 'X-Session-Id': idToUse }
             });
-            setBlinds(res.data);
-            return res.data;
+            setBlinds(response.data);
+            return response.data;
         } catch (err) {
             console.error("Erro ao carregar blinds:", err);
+            // Se falhar ao carregar blinds, pode ser que a sessão tenha expirado
+            // ou o ID no localStorage é inválido.
+            // Para este cenário, o fluxo de inicialização já lida com a criação de uma nova sessão.
         }
-    }, []);
+    }, [sessionId]);
 
     useEffect(() => {
-        let currentSessionId = null;
-        const startSession = async () => {
+        // Flag para controlar se a limpeza/inicialização já foi feita NESTA sessão do navegador
+        const SESSION_INITIALIZED_FLAG = 'poker_session_initialized';
+
+        const initAndCleanupSession = async () => {
+            setLoading(true);
+            const previousSessionId = localStorage.getItem('poker_session_id');
+            const hasSessionBeenInitialized = sessionStorage.getItem(SESSION_INITIALIZED_FLAG);
+
+            // Se a sessão já foi inicializada NESTA ABA DO NAVEGADOR, apenas carregue os dados
+            if (hasSessionBeenInitialized && previousSessionId) {
+                console.log(`Sessão já inicializada nesta aba. Carregando dados da sessão: ${previousSessionId}`);
+                const data = await fetchBlindsData(previousSessionId);
+                if (data) {
+                    setSessionId(previousSessionId);
+                    if (data.length > 0) setTimeLeft(data[0].duration * 60);
+                } else {
+                    // Se o fetchBlindsData falhar (sessão expirou no backend), força uma nova sessão
+                    console.warn("Sessão existente inválida, forçando nova inicialização.");
+                    sessionStorage.removeItem(SESSION_INITIALIZED_FLAG); // Reseta a flag
+                    await initAndCleanupSession(); // Chama recursivamente para iniciar nova sessão
+                    return;
+                }
+                setLoading(false);
+                return;
+            }
+
+            // 1. Limpar a sessão ANTERIOR (se houver) - Isso só acontece na primeira carga ou F5
+            if (previousSessionId) {
+                try {
+                    console.log(`Tentando limpar a sessão anterior (blinds e participantes): ${previousSessionId}`);
+                    await api.post('/session/end', {}, { 
+                        headers: { 'X-Session-Id': previousSessionId }
+                    });
+                    console.log(`Sessão ${previousSessionId} limpa com sucesso.`);
+                } catch (cleanupErr) {
+                    console.warn(`Falha ao limpar sessão anterior ${previousSessionId}. Pode já ter sido encerrada ou ID inválido. Erro:`, cleanupErr);
+                }
+                localStorage.removeItem('poker_session_id'); // Sempre limpa o ID anterior do localStorage
+            }
+
+            // 2. Iniciar uma NOVA sessão principal
             try {
-                setLoading(true);
+                console.log("Iniciando uma nova sessão principal...");
                 const response = await api.post('/session/start');
-                const sId = response.data.sessionId;
-                currentSessionId = sId;
-                setSessionId(sId);
-                const fetchedBlinds = response.data.defaultBlinds;
-                setBlinds(fetchedBlinds);
-                if (fetchedBlinds.length > 0) setTimeLeft(fetchedBlinds[0].duration * 60);
-            } catch (err) {
-                setError("Erro ao iniciar sessão.");
+                const newSessionId = response.data.sessionId;
+                localStorage.setItem('poker_session_id', newSessionId);
+                sessionStorage.setItem(SESSION_INITIALIZED_FLAG, 'true'); // Marca que a sessão foi inicializada nesta aba
+                setSessionId(newSessionId);
+                setBlinds(response.data.defaultBlinds);
+                if (response.data.defaultBlinds.length > 0) {
+                    setTimeLeft(response.data.defaultBlinds[0].duration * 60);
+                }
+                setError(null);
+                console.log(`Nova sessão iniciada: ${newSessionId}`);
+            } catch (startErr) {
+                console.error("Erro ao iniciar nova sessão:", startErr);
+                setError("Erro ao iniciar nova sessão.");
             } finally {
                 setLoading(false);
             }
         };
 
-        startSession();
+        initAndCleanupSession(); // Executa o fluxo de inicialização
 
-        const handleUnload = () => {
-            if (currentSessionId) {
+        // 3. Handler para fechar a sessão PRINCIPAL apenas em FECHAMENTO DE ABA ou RECARGA
+        const handleBeforeUnload = () => {
+            const currentActiveSessionId = localStorage.getItem('poker_session_id');
+            if (currentActiveSessionId) {
+                // Chama o endpoint de encerramento da sessão principal (que agora limpa tudo)
                 fetch('http://localhost:8080/session/end', {
                     method: 'POST',
-                    headers: { 'X-Session-Id': currentSessionId, 'Content-Type': 'application/json' },
-                    keepalive: true
+                    headers: {
+                        'X-Session-Id': currentActiveSessionId,
+                        'Content-Type': 'application/json'
+                    },
+                    keepalive: true // Garante que a requisição seja enviada mesmo com a aba fechando
                 });
+                localStorage.removeItem('poker_session_id'); // Limpa o ID atual do localStorage
+                sessionStorage.removeItem(SESSION_INITIALIZED_FLAG); // Limpa a flag do sessionStorage
             }
         };
 
-        window.addEventListener('beforeunload', handleUnload);
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
         return () => {
-            window.removeEventListener('beforeunload', handleUnload);
-            if (currentSessionId) {
-                api.post('/session/end', {}, { headers: { 'X-Session-Id': currentSessionId } }).catch(() => {});
-            }
+            // Cleanup: Remove o event listener ao desmontar o componente
+            window.removeEventListener('beforeunload', handleBeforeUnload);
         };
-    }, []);
+    }, []); // Array de dependências vazio para rodar apenas uma vez ao montar
 
     useEffect(() => {
         if (isActive && timeLeft > 0) {
@@ -84,12 +144,6 @@ function HomePage() {
                         if (blinds[currentIndex]?.level !== 0) {
                             audioRef.current.currentTime = 0;
                             audioRef.current.play().catch(() => {});
-                            if (nextTime <= 5 && nextTime > 0) {
-                                setTimeout(() => {
-                                    audioRef.current.currentTime = 0;
-                                    audioRef.current.play().catch(() => {});
-                                }, 500);
-                            }
                         }
                     }
                     return nextTime;
@@ -104,14 +158,14 @@ function HomePage() {
     const handleAddBlind = async () => {
         try {
             await api.post('/blinds/add', {}, { headers: { 'X-Session-Id': sessionId } });
-            await fetchBlinds(sessionId);
+            await fetchBlindsData(sessionId);
         } catch (err) { alert("Erro ao adicionar blind"); }
     };
 
     const handleAddBreak = async () => {
         try {
             await api.post('/breaks/add', {}, { headers: { 'X-Session-Id': sessionId } });
-            await fetchBlinds(sessionId);
+            await fetchBlindsData(sessionId);
         } catch (err) { alert("Erro ao adicionar intervalo"); }
     };
 
@@ -119,7 +173,7 @@ function HomePage() {
         if (!window.confirm("Deseja deletar?")) return;
         try {
             await api.delete(`/blinds/delete/${id}`, { headers: { 'X-Session-Id': sessionId } });
-            await fetchBlinds(sessionId);
+            await fetchBlindsData(sessionId);
         } catch (err) { alert("Erro ao deletar"); }
     };
 
@@ -132,8 +186,8 @@ function HomePage() {
                 duration: parseInt(blind.duration)
             };
             await api.put(`/blinds/update/${blind.id}`, payload, { headers: { 'X-Session-Id': sessionId } });
-            const updated = await fetchBlinds(sessionId);
-            if (updated[currentIndex]?.id === blind.id) setTimeLeft(parseInt(blind.duration) * 60);
+            const updated = await fetchBlindsData(sessionId);
+            if (updated && updated[currentIndex]?.id === blind.id) setTimeLeft(parseInt(blind.duration) * 60);
         } catch (err) { alert("Erro ao atualizar blind"); }
     };
 
@@ -141,8 +195,8 @@ function HomePage() {
         try {
             const payload = { duration: parseInt(breakItem.duration) };
             await api.put(`/breaks/update/${breakItem.id}`, payload, { headers: { 'X-Session-Id': sessionId } });
-            const updated = await fetchBlinds(sessionId);
-            if (updated[currentIndex]?.id === breakItem.id) setTimeLeft(parseInt(breakItem.duration) * 60);
+            const updated = await fetchBlindsData(sessionId);
+            if (updated && updated[currentIndex]?.id === breakItem.id) setTimeLeft(parseInt(breakItem.duration) * 60);
         } catch (err) { alert("Erro ao atualizar intervalo"); }
     };
 
@@ -181,7 +235,6 @@ function HomePage() {
                 <Settings color="#61dafb" size={28} style={{ cursor: 'pointer' }} onClick={() => setShowSettings(true)} />
             </div>
 
-            {/* Container do Logo e Botão de Tabelas */}
             <div style={styles.brandContainer}>
                 <h1 style={styles.title}>NUTSPOKER</h1>
                 <button 
