@@ -2,12 +2,14 @@ package com.nutspoker.service
 
 import com.nutspoker.model.BlindModel
 import com.nutspoker.repository.BlindRepository
+import com.nutspoker.repository.ParticipantRepository
 import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
 
 @Service
 class SessionService(
-    private val blindRepository: BlindRepository
+    private val blindRepository: BlindRepository,
+    private val participantRepository: ParticipantRepository
 ) {
 
     // Post
@@ -56,6 +58,7 @@ class SessionService(
     @Transactional
     fun endSession(sessionId: String) {
         blindRepository.deleteBySessionId(sessionId)
+        participantRepository.deleteBySessionId(sessionId)
     }
 
 }

@@ -7,6 +7,10 @@ import jakarta.persistence.Enumerated
 import java.math.BigDecimal
 
 data class ParticipantsShowResponse(
+
+    @JsonAlias("id")
+    val id: Int,
+
     @JsonAlias("player")
     val player: String,
 

@@ -15,7 +15,7 @@ data class PutParticipantRequest(
     val buyIn: BigDecimal? = null,
 
     @JsonAlias("quantity_rebuy")
-    val quantityRebut: Int? = null,
+    val quantityRebuy: Int? = null,
 
     @JsonAlias("value_rebuy")
     val valueRebuy: BigDecimal? = null,

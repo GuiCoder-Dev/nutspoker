@@ -8,23 +8,29 @@ import com.nutspoker.extesion.toParticipantsShowResponse
 import com.nutspoker.repository.ParticipantRepository
 import com.nutspoker.service.ParticipantService
 import jakarta.validation.Valid
+import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/participants")
 class ParticipantController(
     private val participantService: ParticipantService,
-    private val participantRepository: ParticipantRepository
+    private val participantRepository: ParticipantRepository,
 ) {
 
     @PostMapping("/create")
     fun createParticipant(@RequestBody @Valid participant: PostParticipantRequest, @RequestHeader("X-Session-Id") sessionId: String){
-        participantService.create(participant.toParticipantModel())
+        val model = participant.toParticipantModel()
+        model.sessionId = sessionId
+        participantService.create(model)
     }
 
     @PutMapping("/update/{id}")
     fun updateParticipant(@RequestBody @Valid participant: PutParticipantRequest, @PathVariable id: Int, @RequestHeader("X-Session-Id") sessionId: String){
         val previousParticipant = participantRepository.findById(id).orElseThrow()
+        if(previousParticipant.sessionId != sessionId){
+            throw IllegalArgumentException("Sessão inválida para este participante.")
+        }
         participantService.update(participant.toParticipantModel(previousParticipant = previousParticipant))
     }
 
@@ -38,10 +44,6 @@ class ParticipantController(
         val participant = participantRepository.findById(id).orElseThrow()
         participantService.delete(participant)
     }
-
-
-
-
 
 }
 

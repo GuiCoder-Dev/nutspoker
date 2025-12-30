@@ -2,6 +2,7 @@ package com.nutspoker.service
 
 import com.nutspoker.model.ParticipantModel
 import com.nutspoker.repository.ParticipantRepository
+import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
 
 @Service
@@ -24,4 +25,5 @@ class ParticipantService(
     fun delete(participant: ParticipantModel) {
         participantRepository.delete(participant)
     }
+
 }

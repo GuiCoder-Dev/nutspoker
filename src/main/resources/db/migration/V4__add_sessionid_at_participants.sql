@@ -1,0 +1,1 @@
+ALTER TABLE participants ADD COLUMN session_id varchar(100) not null;

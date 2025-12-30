@@ -50,13 +50,14 @@ fun PutParticipantRequest.toParticipantModel(previousParticipant: ParticipantMod
         id = previousParticipant.id,
         player = this.player ?: previousParticipant.player,
         buyIn = this.buyIn ?: previousParticipant.buyIn,
-        quantityRebuy = this.quantityRebut ?: previousParticipant.quantityRebuy,
+        quantityRebuy = this.quantityRebuy ?: previousParticipant.quantityRebuy,
         valueRebuy = this.valueRebuy ?: previousParticipant.valueRebuy,
         totalRebuy = previousParticipant.totalRebuy,
         addOn = this.addOn ?: previousParticipant.addOn,
         totalPlayer = previousParticipant.totalPlayer,
         payment = this.payment ?: previousParticipant.payment,
         position = this.position ?: previousParticipant.position,
+        sessionId = previousParticipant.sessionId
     )
 }
 
@@ -75,6 +76,7 @@ fun BlindModel.toBlindLoadResponse(): BlindLoadResponse{
 //Model to Response
 fun ParticipantModel.toParticipantsShowResponse(): ParticipantsShowResponse {
     return ParticipantsShowResponse(
+        id = this.id!!,
         player = this.player,
         buyIn = this.buyIn,
         quantityRebuy = this.quantityRebuy,

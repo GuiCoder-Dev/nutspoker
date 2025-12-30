@@ -52,6 +52,9 @@ class ParticipantModel(
 
     @Column(name = "position")
     val position: Int = 0,
+
+    @Column(name = "session_id")
+    var sessionId: String? = null
 )
 
 
