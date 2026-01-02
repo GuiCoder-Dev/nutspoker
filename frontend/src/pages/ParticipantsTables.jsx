@@ -1,7 +1,7 @@
 // src/pages/ParticipantsTables.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, UserPlus, Loader2, AlertCircle, RefreshCw, Save, XCircle } from 'lucide-react';
+import { ArrowLeft, UserPlus, Loader2, AlertCircle, RefreshCw, XCircle, ChevronDownSquare } from 'lucide-react';
 import api from '../services/api';
 
 function ParticipantsTables() {
@@ -21,7 +21,7 @@ function ParticipantsTables() {
         if (!sessionId) {
             setError("Sessão não encontrada. Inicie o timer primeiro.");
             setLoading(false);
-            return;
+            return [];
         }
 
         try {
@@ -40,9 +40,11 @@ function ParticipantsTables() {
 
             setParticipants(fetchedParticipants);
             setError(null);
+            return fetchedParticipants;
         } catch (err) {
             console.error("Erro ao buscar participantes:", err);
             setError("Falha ao carregar participantes do servidor.");
+            return [];
         } finally {
             setLoading(false);
         }
@@ -60,7 +62,7 @@ function ParticipantsTables() {
         setIsSubmitting(true);
         try {
             await api.post('/participants/create', 
-                { player: trimmedName },
+                { player: trimmedName, position: 0 }, 
                 { headers: { 'X-Session-Id': sessionId } }
             );
             setPlayerName('');
@@ -96,7 +98,11 @@ function ParticipantsTables() {
             await api.put(`/participants/update/${participantId}`, payload, {
                 headers: { 'X-Session-Id': sessionId }
             });
-            await fetchParticipants();
+            const updatedList = await fetchParticipants(); // Pega a lista atualizada
+            // Verifica se algum jogador atingiu a posição 1 após a atualização
+            if (updatedList.some(p => p.position === 1)) {
+                navigate('/champions'); // Redireciona para a página de campeões
+            }
         } catch (err) {
             console.error(`Erro ao atualizar ${fieldName} para participante ${participantId}:`, err);
             alert(`Falha ao atualizar ${fieldName}.`);
@@ -123,6 +129,50 @@ function ParticipantsTables() {
         } catch (err) {
             console.error(`Erro ao deletar participante ${playerName} (ID: ${participantId}):`, err);
             alert(`Falha ao deletar o participante ${playerName}.`);
+        }
+    };
+
+    const handlePlayerFell = async (participantId, playerName) => {
+        if (!sessionId) {
+            alert("Sessão inválida.");
+            return;
+        }
+
+        if (!window.confirm(`Confirmar que ${playerName} caiu?`)) {
+            return;
+        }
+
+        try {
+            const activePlayersBeforeFall = participants.filter(p => p.position === 0);
+            const numActivePlayersBeforeFall = activePlayersBeforeFall.length;
+
+            const finalPositionForFallingPlayer = numActivePlayersBeforeFall;
+
+            await api.put(`/participants/update/${participantId}`, { position: finalPositionForFallingPlayer }, {
+                headers: { 'X-Session-Id': sessionId }
+            });
+
+            const updatedParticipantsList = await fetchParticipants();
+
+            const remainingActivePlayers = updatedParticipantsList.filter(p => p.position === 0);
+
+            if (remainingActivePlayers.length === 1) {
+                const winnerPlayer = remainingActivePlayers[0];
+                await api.put(`/participants/update/${winnerPlayer.id}`, { position: 1 }, {
+                    headers: { 'X-Session-Id': sessionId }
+                });
+                const finalUpdatedList = await fetchParticipants(); // Pega a lista final com o vencedor
+                if (finalUpdatedList.some(p => p.position === 1)) {
+                    navigate('/champions'); // Redireciona para a página de campeões
+                }
+            } else if (updatedParticipantsList.some(p => p.position === 1)) {
+                // Caso a posição 1 tenha sido setada manualmente ou por outro fluxo
+                navigate('/champions');
+            }
+
+        } catch (err) {
+            console.error(`Erro ao marcar ${playerName} como caído:`, err);
+            alert(`Falha ao marcar ${playerName} como caído.`);
         }
     };
 
@@ -237,7 +287,7 @@ function ParticipantsTables() {
                         <tbody>
                             {participants.map((p) => (
                                 <tr key={p.id} style={styles.tr}>
-                                    <td style={styles.td}>{renderEditableCell(p, 'position', 'number')}º</td>
+                                    <td style={styles.td}>{p.position}º</td>
                                     <td style={{...styles.td, color: '#61dafb', fontWeight: 'bold'}}>
                                         {renderEditableCell(p, 'player')}
                                     </td>
@@ -251,9 +301,19 @@ function ParticipantsTables() {
                                     </td>
                                     <td style={styles.td}>{renderEditableCell(p, 'payment', 'select')}</td>
                                     <td style={styles.td}>
+                                        {p.position === 0 && (
+                                            <button 
+                                                onClick={() => handlePlayerFell(p.id, p.player)}
+                                                style={{...styles.actionButton, marginRight: '8px'}}
+                                                title={`Marcar ${p.player} como caído`}
+                                            >
+                                                <ChevronDownSquare size={18} color="#ff9800" />
+                                            </button>
+                                        )}
                                         <button 
                                             onClick={() => handleDeleteParticipant(p.id, p.player)}
                                             style={styles.actionButton}
+                                            title={`Eliminar ${p.player}`}
                                         >
                                             <XCircle size={18} color="#ff6b6b" />
                                         </button>
@@ -269,31 +329,150 @@ function ParticipantsTables() {
 }
 
 const styles = {
-    container: { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', minHeight: '100vh', backgroundColor: '#0f0f0f', color: '#fff', fontFamily: '"Courier New", Courier, monospace', padding: '40px' },
-    headerRow: { display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'flex-start' },
-    backButton: { display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: 'transparent', border: '1px solid #61dafb', color: '#61dafb', padding: '10px 20px', borderRadius: '5px', cursor: 'pointer', fontSize: '0.9em', fontWeight: 'bold', marginBottom: '40px' },
-    refreshBtn: { backgroundColor: 'transparent', border: 'none', color: '#61dafb', cursor: 'pointer', padding: '10px' },
-    title: { fontSize: '2.5em', color: '#61dafb', letterSpacing: '4px', margin: '0 0 30px 0' },
-    errorBanner: { display: 'flex', alignItems: 'center', gap: '10px', backgroundColor: '#441111', color: '#ff4444', padding: '15px', borderRadius: '5px', marginBottom: '20px', width: '100%', border: '1px solid #ff4444', fontSize: '0.8em', fontWeight: 'bold' },
-    formContainer: { display: 'flex', gap: '15px', marginBottom: '40px', width: '100%', maxWidth: '600px' },
-    input: { flex: 1, backgroundColor: '#1a1a1a', border: '1px solid #333', color: '#fff', padding: '12px', borderRadius: '4px', fontFamily: 'inherit', outline: 'none', fontSize: '1em' },
-    addButton: { display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#61dafb', border: 'none', color: '#000', padding: '0 25px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' },
-    disabledButton: { display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: '#333', border: 'none', color: '#666', padding: '0 25px', borderRadius: '4px', cursor: 'not-allowed', fontWeight: 'bold' },
-    tableWrapper: { width: '100%', overflowX: 'auto' },
-    table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.85em' },
-    th: { borderBottom: '2px solid #333', padding: '15px 10px', color: '#666', textTransform: 'uppercase' },
-    td: { padding: '10px', borderBottom: '1px solid #222', verticalAlign: 'middle' },
-    tr: { borderBottom: '1px solid #222' },
-    statusText: { color: '#666', fontStyle: 'italic' },
+    container: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-start',
+        minHeight: '100vh',
+        backgroundColor: '#0f0f0f',
+        color: '#fff',
+        fontFamily: '"Courier New", Courier, monospace',
+        padding: '40px',
+        fontSize: '1.1em'
+    },
+    headerRow: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        width: '100%',
+        alignItems: 'flex-start'
+    },
+    backButton: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        backgroundColor: 'transparent',
+        border: '1px solid #61dafb',
+        color: '#61dafb',
+        padding: '12px 25px',
+        borderRadius: '5px',
+        cursor: 'pointer',
+        fontSize: '1em',
+        fontWeight: 'bold',
+        marginBottom: '40px',
+        transition: 'background-color 0.3s, color 0.3s'
+    },
+    refreshBtn: {
+        backgroundColor: 'transparent',
+        border: 'none',
+        color: '#61dafb',
+        cursor: 'pointer',
+        padding: '10px',
+        fontSize: '1em'
+    },
+    title: {
+        fontSize: '3em',
+        color: '#61dafb',
+        letterSpacing: '4px',
+        margin: '0 0 30px 0'
+    },
+    errorBanner: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        backgroundColor: '#441111',
+        color: '#ff4444',
+        padding: '15px',
+        borderRadius: '5px',
+        marginBottom: '20px',
+        width: '100%',
+        border: '1px solid #ff4444',
+        fontSize: '0.9em',
+        fontWeight: 'bold'
+    },
+    formContainer: {
+        display: 'flex',
+        gap: '15px',
+        marginBottom: '40px',
+        width: '100%',
+        maxWidth: '700px'
+    },
+    input: {
+        flex: 1,
+        backgroundColor: '#1a1a1a',
+        border: '1px solid #333',
+        color: '#fff',
+        padding: '15px',
+        borderRadius: '4px',
+        fontFamily: 'inherit',
+        outline: 'none',
+        fontSize: '1.1em'
+    },
+    addButton: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        backgroundColor: '#61dafb',
+        border: 'none',
+        color: '#000',
+        padding: '0 30px',
+        borderRadius: '4px',
+        cursor: 'pointer',
+        fontWeight: 'bold',
+        fontSize: '1.1em'
+    },
+    disabledButton: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        backgroundColor: '#333',
+        border: 'none',
+        color: '#666',
+        padding: '0 30px',
+        borderRadius: '4px',
+        cursor: 'not-allowed',
+        fontWeight: 'bold',
+        fontSize: '1.1em'
+    },
+    tableWrapper: {
+        width: '100%',
+        overflowX: 'auto'
+    },
+    table: {
+        width: '100%',
+        borderCollapse: 'collapse',
+        textAlign: 'left',
+        fontSize: '1em'
+    },
+    th: {
+        borderBottom: '2px solid #333',
+        padding: '18px 12px',
+        color: '#666',
+        textTransform: 'uppercase',
+        fontSize: '1.1em'
+    },
+    td: {
+        padding: '15px 12px',
+        borderBottom: '1px solid #222',
+        verticalAlign: 'middle',
+        fontSize: '1.1em'
+    },
+    tr: {
+        borderBottom: '1px solid #222'
+    },
+    statusText: {
+        color: '#666',
+        fontStyle: 'italic',
+        fontSize: '1.2em'
+    },
     editableInput: {
         backgroundColor: '#222',
         border: '1px solid #444',
         color: '#fff',
-        padding: '5px 8px',
+        padding: '8px 10px',
         borderRadius: '3px',
         width: 'auto',
-        minWidth: '50px',
-        maxWidth: '100px',
+        minWidth: '60px',
+        maxWidth: '120px',
         fontSize: '1em',
         fontFamily: 'inherit'
     },
