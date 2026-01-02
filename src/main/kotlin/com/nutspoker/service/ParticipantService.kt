@@ -2,7 +2,6 @@ package com.nutspoker.service
 
 import com.nutspoker.model.ParticipantModel
 import com.nutspoker.repository.ParticipantRepository
-import jakarta.transaction.Transactional
 import org.springframework.stereotype.Service
 
 @Service
@@ -26,4 +25,7 @@ class ParticipantService(
         participantRepository.delete(participant)
     }
 
+    fun champion(sessionId: String): List<ParticipantModel> {
+        return participantRepository.findBySessionIdAndPositionIn(sessionId, listOf( 1, 2, 3))
+    }
 }

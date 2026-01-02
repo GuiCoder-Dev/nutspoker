@@ -2,6 +2,7 @@ package com.nutspoker.controller.request
 
 import com.fasterxml.jackson.annotation.JsonAlias
 import com.nutspoker.enuns.Payment
+import jakarta.persistence.Column
 import jakarta.persistence.EnumType
 import jakarta.persistence.Enumerated
 import java.math.BigDecimal
@@ -27,6 +28,7 @@ data class PutParticipantRequest(
     @Enumerated(EnumType.STRING)
     val payment: Payment? = null,
 
+    @Column(name = "position", unique = true, nullable = false)
     @JsonAlias("position")
     val position: Int? = null,
 )

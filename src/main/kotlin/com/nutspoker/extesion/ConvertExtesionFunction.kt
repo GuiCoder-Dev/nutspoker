@@ -5,6 +5,7 @@ import com.nutspoker.controller.request.PutBlindRequest
 import com.nutspoker.controller.request.PutBreakRequest
 import com.nutspoker.controller.request.PutParticipantRequest
 import com.nutspoker.controller.response.BlindLoadResponse
+import com.nutspoker.controller.response.ChampionResponse
 import com.nutspoker.controller.response.ParticipantsShowResponse
 import com.nutspoker.model.BlindModel
 import com.nutspoker.model.ParticipantModel
@@ -85,6 +86,14 @@ fun ParticipantModel.toParticipantsShowResponse(): ParticipantsShowResponse {
         addOn = this.addOn,
         totalPlayer = this.totalPlayer,
         payment = this.payment,
+        position = this.position,
+    )
+}
+
+// Model to Response
+fun ParticipantModel.toChampionResponse(): ChampionResponse {
+    return ChampionResponse(
+        player = this.player,
         position = this.position,
     )
 }

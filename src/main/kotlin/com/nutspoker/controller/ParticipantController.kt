@@ -2,13 +2,14 @@ package com.nutspoker.controller
 
 import com.nutspoker.controller.request.PostParticipantRequest
 import com.nutspoker.controller.request.PutParticipantRequest
+import com.nutspoker.controller.response.ChampionResponse
 import com.nutspoker.controller.response.ParticipantsShowResponse
+import com.nutspoker.extesion.toChampionResponse
 import com.nutspoker.extesion.toParticipantModel
 import com.nutspoker.extesion.toParticipantsShowResponse
 import com.nutspoker.repository.ParticipantRepository
 import com.nutspoker.service.ParticipantService
 import jakarta.validation.Valid
-import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
@@ -43,6 +44,11 @@ class ParticipantController(
     fun deleteParticipant(@PathVariable id: Int, @RequestHeader("X-Session-Id") sessionId: String){
         val participant = participantRepository.findById(id).orElseThrow()
         participantService.delete(participant)
+    }
+
+    @GetMapping("/champions")
+    fun showChampions(@RequestHeader("X-Session-Id") sessionId: String): List<ChampionResponse>{
+        return participantService.champion(sessionId).map {it.toChampionResponse()}
     }
 
 }
