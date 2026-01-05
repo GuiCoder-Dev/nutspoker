@@ -85,3 +85,9 @@ nmp start
 
 ---
 
+## 😥 Observações
+
+- Deixar apenas um site aberto por máquina, devido ao conflito no banco de dados
+
+---
+
