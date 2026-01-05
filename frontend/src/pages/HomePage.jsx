@@ -1,4 +1,3 @@
-// src/pages/HomePage.jsx
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -18,87 +17,107 @@ function HomePage() {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [timeLeft, setTimeLeft] = useState(0);
     const [isActive, setIsActive] = useState(false);
+    
     const [isSoundEnabled, setIsSoundEnabled] = useState(true);
     
     const timerRef = useRef(null);
     const audioRef = useRef(new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg'));
-    // isMounted não é mais necessário para o problema atual, mas pode ser útil para outras otimizações
-    // const isMounted = useRef(true); 
 
-    // Esta função é para recarregar blinds de uma sessão JÁ ESTABELECIDA
-    const fetchBlindsData = useCallback(async (sId) => {
+    const SESSION_TIMER_STATE_KEY = 'poker_timer_state';
+    const SESSION_INITIALIZED_FLAG = 'poker_session_initialized';
+
+    const fetchBlindsData = useCallback(async (id) => {
         try {
-            const idToUse = sId || sessionId || localStorage.getItem('poker_session_id');
-            if (!idToUse) return;
-
+            if (!id) return null;
             const response = await api.get('/session/blinds', {
-                headers: { 'X-Session-Id': idToUse }
+                headers: { 'X-Session-Id': id }
             });
             setBlinds(response.data);
             return response.data;
         } catch (err) {
-            console.error("Erro ao carregar blinds:", err);
-            // Se falhar ao carregar blinds, pode ser que a sessão tenha expirado
-            // ou o ID no localStorage é inválido.
-            // Para este cenário, o fluxo de inicialização já lida com a criação de uma nova sessão.
+            console.error("Erro ao carregar blinds ou sessão inválida:", err);
+            if (err.response && (err.response.status === 404 || err.response.status === 400)) {
+                return null;
+            }
+            throw err;
         }
-    }, [sessionId]);
+    }, []);
 
     useEffect(() => {
-        // Flag para controlar se a limpeza/inicialização já foi feita NESTA sessão do navegador
-        const SESSION_INITIALIZED_FLAG = 'poker_session_initialized';
-
-        const initAndCleanupSession = async () => {
+        const manageSessionOnMount = async () => {
             setLoading(true);
-            const previousSessionId = localStorage.getItem('poker_session_id');
+            let storedSessionId = localStorage.getItem('poker_session_id');
             const hasSessionBeenInitialized = sessionStorage.getItem(SESSION_INITIALIZED_FLAG);
 
-            // Se a sessão já foi inicializada NESTA ABA DO NAVEGADOR, apenas carregue os dados
-            if (hasSessionBeenInitialized && previousSessionId) {
-                console.log(`Sessão já inicializada nesta aba. Carregando dados da sessão: ${previousSessionId}`);
-                const data = await fetchBlindsData(previousSessionId);
-                if (data) {
-                    setSessionId(previousSessionId);
-                    if (data.length > 0) setTimeLeft(data[0].duration * 60);
-                } else {
-                    // Se o fetchBlindsData falhar (sessão expirou no backend), força uma nova sessão
-                    console.warn("Sessão existente inválida, forçando nova inicialização.");
-                    sessionStorage.removeItem(SESSION_INITIALIZED_FLAG); // Reseta a flag
-                    await initAndCleanupSession(); // Chama recursivamente para iniciar nova sessão
-                    return;
-                }
-                setLoading(false);
-                return;
-            }
-
-            // 1. Limpar a sessão ANTERIOR (se houver) - Isso só acontece na primeira carga ou F5
-            if (previousSessionId) {
+            if (storedSessionId && hasSessionBeenInitialized) {
+                console.log(`SessionId ${storedSessionId} encontrado no localStorage. Tentando carregar...`);
                 try {
-                    console.log(`Tentando limpar a sessão anterior (blinds e participantes): ${previousSessionId}`);
-                    await api.post('/session/end', {}, { 
-                        headers: { 'X-Session-Id': previousSessionId }
-                    });
-                    console.log(`Sessão ${previousSessionId} limpa com sucesso.`);
-                } catch (cleanupErr) {
-                    console.warn(`Falha ao limpar sessão anterior ${previousSessionId}. Pode já ter sido encerrada ou ID inválido. Erro:`, cleanupErr);
+                    const sessionBlinds = await fetchBlindsData(storedSessionId);
+                    if (sessionBlinds) {
+                       
+                        setSessionId(storedSessionId);
+                        setBlinds(sessionBlinds);
+
+                     
+                        const savedTimerState = JSON.parse(sessionStorage.getItem(SESSION_TIMER_STATE_KEY));
+                        if (savedTimerState && savedTimerState.sessionId === storedSessionId) {
+                            setCurrentIndex(savedTimerState.currentIndex);
+                            setTimeLeft(savedTimerState.timeLeft);
+                            setIsActive(savedTimerState.isActive);
+                            console.log("Estado do timer carregado do sessionStorage:", savedTimerState);
+                        } else {
+                            
+                            setCurrentIndex(0);
+                            setTimeLeft(sessionBlinds.length > 0 ? sessionBlinds[0].duration * 60 : 0);
+                            setIsActive(false);
+                            console.log("Nenhum estado de timer válido encontrado, inicializando padrão.");
+                        }
+                        setError(null);
+                        setLoading(false);
+                        console.log(`Sessão existente ${storedSessionId} carregada.`);
+                        return; 
+                    }
+                } catch (loadErr) {
+                    console.error(`Erro ao carregar sessão ${storedSessionId}:`, loadErr);
+                    
                 }
-                localStorage.removeItem('poker_session_id'); // Sempre limpa o ID anterior do localStorage
             }
 
-            // 2. Iniciar uma NOVA sessão principal
-            try {
-                console.log("Iniciando uma nova sessão principal...");
-                const response = await api.post('/session/start');
-                const newSessionId = response.data.sessionId;
-                localStorage.setItem('poker_session_id', newSessionId);
-                sessionStorage.setItem(SESSION_INITIALIZED_FLAG, 'true'); // Marca que a sessão foi inicializada nesta aba
-                setSessionId(newSessionId);
-                setBlinds(response.data.defaultBlinds);
-                if (response.data.defaultBlinds.length > 0) {
-                    setTimeLeft(response.data.defaultBlinds[0].duration * 60);
+          
+            console.log("Nenhuma sessão válida encontrada ou a sessão existente é inválida/expirada. Iniciando nova sessão.");
+            
+            // Limpa qualquer sessão anterior potencialmente inválida (blinds e participantes)
+            if (storedSessionId) {
+                try {
+                    await api.post('/session/end', {}, { 
+                        headers: { 'X-Session-Id': storedSessionId }
+                    });
+                    console.log(`Sessão inválida ${storedSessionId} encerrada no backend.`);
+                } catch (cleanupErr) {
+                    console.warn(`Falha ao encerrar sessão inválida ${storedSessionId} no backend. Erro:`, cleanupErr);
                 }
+                localStorage.removeItem('poker_session_id');
+            }
+            sessionStorage.removeItem(SESSION_TIMER_STATE_KEY); // Limpa qualquer estado antigo do timer
+            sessionStorage.removeItem(SESSION_INITIALIZED_FLAG); 
+
+            // Inicia uma sessão completamente nova
+            try {
+                const response = await api.post('/session/start');
+                const newId = response.data.sessionId;
+                localStorage.setItem('poker_session_id', newId);
+                sessionStorage.setItem(SESSION_INITIALIZED_FLAG, 'true'); // Marca que a sessão foi inicializada nesta aba
+                
+                setSessionId(newId);
+                setBlinds(response.data.defaultBlinds);
+                
+             
+                setCurrentIndex(0);
+                setTimeLeft(response.data.defaultBlinds.length > 0 ? response.data.defaultBlinds[0].duration * 60 : 0);
+                setIsActive(false);
+
                 setError(null);
-                console.log(`Nova sessão iniciada: ${newSessionId}`);
+                console.log(`Nova sessão iniciada: ${newId}`);
             } catch (startErr) {
                 console.error("Erro ao iniciar nova sessão:", startErr);
                 setError("Erro ao iniciar nova sessão.");
@@ -107,33 +126,47 @@ function HomePage() {
             }
         };
 
-        initAndCleanupSession(); // Executa o fluxo de inicialização
+        manageSessionOnMount();
 
-        // 3. Handler para fechar a sessão PRINCIPAL apenas em FECHAMENTO DE ABA ou RECARGA
+        // Handler para encerrar a sessão PRINCIPAL apenas no FECHAMENTO DE ABA ou RECARGA
         const handleBeforeUnload = () => {
             const currentActiveSessionId = localStorage.getItem('poker_session_id');
             if (currentActiveSessionId) {
-                // Chama o endpoint de encerramento da sessão principal (que agora limpa tudo)
                 fetch('http://localhost:8080/session/end', {
                     method: 'POST',
                     headers: {
                         'X-Session-Id': currentActiveSessionId,
                         'Content-Type': 'application/json'
                     },
-                    keepalive: true // Garante que a requisição seja enviada mesmo com a aba fechando
+                    keepalive: true
                 });
-                localStorage.removeItem('poker_session_id'); // Limpa o ID atual do localStorage
-                sessionStorage.removeItem(SESSION_INITIALIZED_FLAG); // Limpa a flag do sessionStorage
+                localStorage.removeItem('poker_session_id');
+                sessionStorage.removeItem(SESSION_INITIALIZED_FLAG); 
+                sessionStorage.removeItem(SESSION_TIMER_STATE_KEY); 
             }
         };
 
         window.addEventListener('beforeunload', handleBeforeUnload);
 
         return () => {
-            // Cleanup: Remove o event listener ao desmontar o componente
             window.removeEventListener('beforeunload', handleBeforeUnload);
         };
-    }, []); // Array de dependências vazio para rodar apenas uma vez ao montar
+    }, [fetchBlindsData]); 
+
+    // NOVO EFFECT: Para persistir o estado do timer no sessionStorage sempre que ele mudar
+    useEffect(() => {
+        if (sessionId) { // Só salva se uma sessão estiver ativa
+            const timerState = {
+                sessionId: sessionId, // Salva o sessionId junto para validação
+                currentIndex: currentIndex,
+                timeLeft: timeLeft,
+                isActive: isActive
+            };
+            sessionStorage.setItem(SESSION_TIMER_STATE_KEY, JSON.stringify(timerState));
+            console.log("Estado do timer salvo no sessionStorage:", timerState);
+        }
+    }, [sessionId, currentIndex, timeLeft, isActive]);
+
 
     useEffect(() => {
         if (isActive && timeLeft > 0) {

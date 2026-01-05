@@ -1,4 +1,3 @@
-// src/pages/ParticipantsTables.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, UserPlus, Loader2, AlertCircle, RefreshCw, XCircle, ChevronDownSquare } from 'lucide-react';
@@ -98,10 +97,10 @@ function ParticipantsTables() {
             await api.put(`/participants/update/${participantId}`, payload, {
                 headers: { 'X-Session-Id': sessionId }
             });
-            const updatedList = await fetchParticipants(); // Pega a lista atualizada
-            // Verifica se algum jogador atingiu a posição 1 após a atualização
+            const updatedList = await fetchParticipants(); 
+            
             if (updatedList.some(p => p.position === 1)) {
-                navigate('/champions'); // Redireciona para a página de campeões
+                navigate('/champions');
             }
         } catch (err) {
             console.error(`Erro ao atualizar ${fieldName} para participante ${participantId}:`, err);
@@ -161,12 +160,12 @@ function ParticipantsTables() {
                 await api.put(`/participants/update/${winnerPlayer.id}`, { position: 1 }, {
                     headers: { 'X-Session-Id': sessionId }
                 });
-                const finalUpdatedList = await fetchParticipants(); // Pega a lista final com o vencedor
+                const finalUpdatedList = await fetchParticipants(); 
                 if (finalUpdatedList.some(p => p.position === 1)) {
-                    navigate('/champions'); // Redireciona para a página de campeões
+                    navigate('/champions'); 
                 }
             } else if (updatedParticipantsList.some(p => p.position === 1)) {
-                // Caso a posição 1 tenha sido setada manualmente ou por outro fluxo
+                
                 navigate('/champions');
             }
 
