@@ -1,4 +1,4 @@
-# nutspoker
+# NutsPoker
 
 Este projeto consiste em um site com funcionalidades para jogar o jogo de cartas "Poker", com um timer e um sistema de tabelas para cadastro dos jogadores
 
